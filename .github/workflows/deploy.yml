@@ -17,11 +17,6 @@ jobs:
         run: |
           echo "window.TRACKING_ID = '${{ secrets.TRACKING_ID }}';" > tracking.js  # Create tracking.js with tracking ID
 
-      - name: Move tracking.js to the publish directory
-        run: |
-          # Ensure tracking.js is in the root of the deployment folder
-          mv tracking.js ./ # Move tracking.js to the current directory
-
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
