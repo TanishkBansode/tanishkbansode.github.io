@@ -13,8 +13,10 @@
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-        gtag('config', 'G-3R5Y1SD3MR');
-</script>
+gtag('config', 'G-3R5Y1SD3MR', {
+        'cookie_domain': 'auto'  // Ensure cookies work across all domains/subdomains
+    });
+    </script>
 
 </head>
 <body class="bg-gray-900 text-white">
