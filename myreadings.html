@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Books I've Read</title>
+    <link rel="icon" href="/favicon1.ico" type="image/x-icon">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-3R5Y1SD3MR"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-3R5Y1SD3MR', {
+            'cookie_domain': 'auto'
+        });
+    </script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'custom-bg': '#1a202c',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-custom-bg text-white font-sans">
+    <div class="container mx-auto px-4 py-8 max-w-2xl">
+        <header class="text-center mb-12">
+            <h1 class="text-3xl md:text-4xl font-bold mb-2">Books I've Read</h1>
+            <p class="text-gray-400">A chronological list of books I've read, sorted by date.</p>
+        </header>
+
+        <main>
+            <ul id="bookList" class="space-y-6">
+                <!-- Book entries will be inserted here by JavaScript -->
+            </ul>
+        </main>
+
+        <footer class="text-center mt-12">
+            <p class="text-gray-500 text-sm">&copy; 2024 Your Name</p>
+        </footer>
+    </div>
+
+    <script>
+        const books = [
+            { title: "Communist Manifesto", author: "Karl Marx and Friedrich Engels", dateRead: "2024-12-29" },
+        ];
+
+        // Sort books by date (most recent first)
+        books.sort((a, b) => new Date(b.dateRead) - new Date(a.dateRead));
+
+        const bookList = document.getElementById('bookList');
+
+        books.forEach(book => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h2 class="text-blue-400 hover:underline text-lg">${book.title}</h2>
+                        <p class="text-gray-400 text-sm mt-1">By ${book.author}</p>
+                    </div>
+                    <span class="text-gray-500 text-sm">${new Date(book.dateRead).toLocaleDateString()}</span>
+                </div>
+            `;
+            bookList.appendChild(li);
+        });
+    </script>
+</body>
+</html>
