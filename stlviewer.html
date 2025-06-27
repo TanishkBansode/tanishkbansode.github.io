@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STL Viewer</title>
+    <title>3D Model Viewer (.stl, .glb)</title>
     <style>
         /* Basic styles for the page and viewer */
         body {
@@ -94,8 +94,9 @@
     <div id="viewer-container">
         <!-- Control panel for file selection and background color -->
         <div id="controls">
-            <label for="file-input" id="file-input-label">Choose STL File</label>
-            <input type="file" id="file-input" accept=".stl">
+            <!-- The file input now accepts both .stl and .glb files -->
+            <label for="file-input" id="file-input-label">Choose File (.stl, .glb)</label>
+            <input type="file" id="file-input" accept=".stl,.glb">
             <select id="bg-color-selector">
                 <option value="0x000000">Black Background</option>
                 <option value="0xffffff" selected>White Background</option>
@@ -111,11 +112,16 @@
 
     <!-- Three.js library and necessary loaders/controls from CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+    <!-- GLTFLoader is included to handle .glb files when selected -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
         let scene, camera, renderer, controls, model;
+        // Instantiate loaders once for reuse
+        const stlLoader = new THREE.STLLoader();
+        const gltfLoader = new THREE.GLTFLoader();
 
         /**
          * Initializes the entire 3D scene, camera, renderer, and controls.
@@ -129,20 +135,24 @@
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            // Settings for physically correct lighting, especially for GLB models
+            renderer.physicallyCorrectLights = true;
+            renderer.outputEncoding = THREE.sRGBEncoding;
             document.getElementById('viewer').appendChild(renderer.domElement);
 
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.1;
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            // Lighting setup that works well for both Phong (STL) and PBR (GLB) materials
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(100, 100, 100);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(5, 10, 7.5);
             scene.add(directionalLight);
 
-            // Load a reliable default model from the official Three.js examples
-            loadSTL('knightkiller.stl');
+            // MODIFIED: Load a default STL model from a reliable URL to ensure it always works on startup.
+            loadModel('knightkiller.stl');
 
             // --- Event Listeners ---
             document.getElementById('file-input').addEventListener('change', onFileSelect, false);
@@ -157,61 +167,70 @@
         }
 
         /**
-         * Loads an STL model from a URL or a File object.
-         * @param {string|File} urlOrFile - The URL of the STL file or a File object.
+         * Cleans up the old model, adds the new one, then centers and frames it.
+         * @param {THREE.Object3D} newModel - The model to add to the scene.
+         * @param {string} fileName - The name of the loaded file.
          */
-        function loadSTL(urlOrFile) {
-            const loader = new THREE.STLLoader();
-            const fileInfo = document.getElementById('file-info');
-            let fileName = "default model";
-
-            if (urlOrFile instanceof File) {
-                fileName = urlOrFile.name;
+        function setupModel(newModel, fileName) {
+            if (model) {
+                scene.remove(model);
             }
+            model = newModel;
+            scene.add(model);
+
+            // Center and frame the model
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3()).length();
+            
+            model.position.sub(center); 
+            controls.target.copy(model.position);
+
+            const fov = camera.fov * (Math.PI / 180);
+            const cameraDistance = Math.abs(size / 2 / Math.tan(fov / 2));
+            camera.position.z = cameraDistance * 1.5;
+
+            controls.update();
+            document.getElementById('file-info').textContent = `Loaded: ${fileName}`;
+        }
+        
+        /**
+         * Loads a model from a URL or File object, detecting the format (.stl or .glb).
+         * @param {string|File} fileOrUrl - The URL of the model or a File object.
+         */
+        function loadModel(fileOrUrl) {
+            const fileInfo = document.getElementById('file-info');
+            const isFile = fileOrUrl instanceof File;
+            const fileName = isFile ? fileOrUrl.name : fileOrUrl.split('/').pop();
+            const fileExt = fileName.split('.').pop().toLowerCase();
+            const objectURL = isFile ? URL.createObjectURL(fileOrUrl) : fileOrUrl;
+            
             fileInfo.textContent = `Loading: ${fileName}...`;
 
-            const onModelLoad = function (geometry) {
-                if (model) {
-                    scene.remove(model);
-                }
-                const material = new THREE.MeshPhongMaterial({ color: 0x555555, specular: 0x111111, shininess: 200 });
-                model = new THREE.Mesh(geometry, material);
-                scene.add(model);
-
-                const box = new THREE.Box3().setFromObject(model);
-                const center = box.getCenter(new THREE.Vector3());
-                const size = box.getSize(new THREE.Vector3()).length();
-                model.position.sub(center);
-
-                const fov = camera.fov * (Math.PI / 180);
-                const cameraDistance = Math.abs(size / 2 / Math.tan(fov / 2));
-                camera.position.z = cameraDistance * 1.5;
-                controls.target.copy(model.position);
-                controls.update();
-                fileInfo.textContent = `Loaded: ${fileName}`;
-            };
-            
-            const onError = function(error) {
-                console.error(error);
+            const onModelLoadError = (error) => {
+                console.error("Error loading model:", error);
                 fileInfo.textContent = `Error loading model.`;
-                showToast('Could not load the model. It might be invalid or a network issue.');
+                showToast(`Could not load ${fileName}. Check console for details.`);
+                if (isFile) URL.revokeObjectURL(objectURL);
             };
 
-            if (urlOrFile instanceof File) {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    try {
-                        const contents = e.target.result;
-                        const geometry = loader.parse(contents);
-                        onModelLoad(geometry);
-                    } catch (error) {
-                        onError(error);
-                    }
-                };
-                reader.onerror = onError;
-                reader.readAsArrayBuffer(urlOrFile);
+            if (fileExt === 'stl') {
+                stlLoader.load(objectURL, (geometry) => {
+                    const material = new THREE.MeshPhongMaterial({ color: 0x808080, specular: 0x111111, shininess: 200 });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    setupModel(mesh, fileName);
+                    if (isFile) URL.revokeObjectURL(objectURL);
+                }, undefined, onModelLoadError);
+            } else if (fileExt === 'glb' || fileExt === 'gltf') {
+                gltfLoader.load(objectURL, (gltf) => {
+                    const loadedModel = gltf.scene;
+                    setupModel(loadedModel, fileName);
+                    if (isFile) URL.revokeObjectURL(objectURL);
+                }, undefined, onModelLoadError);
             } else {
-                loader.load(urlOrFile, onModelLoad, undefined, onError);
+                showToast(`Unsupported file type: .${fileExt}`);
+                fileInfo.textContent = 'Please select a .stl or .glb file.';
+                if (isFile) URL.revokeObjectURL(objectURL);
             }
         }
 
@@ -227,7 +246,7 @@
 
         function onFileSelect(event) {
             if (event.target.files.length > 0) {
-                loadSTL(event.target.files[0]);
+                loadModel(event.target.files[0]);
             }
         }
 
@@ -249,10 +268,12 @@
             event.preventDefault();
             if (event.dataTransfer.files.length > 0) {
                 const file = event.dataTransfer.files[0];
-                if (file.name.toLowerCase().endsWith('.stl')) {
-                    loadSTL(file);
+                const fileName = file.name.toLowerCase();
+                // Check for both .stl and .glb
+                if (fileName.endsWith('.stl') || fileName.endsWith('.glb')) {
+                    loadModel(file);
                 } else {
-                    showToast('Please drop a valid .stl file.');
+                    showToast('Please drop a valid .stl or .glb file.');
                 }
             }
         }
